@@ -32,7 +32,10 @@ start:
 
 # runs the application in packaged form
 run: package
-	docker run -it -p 8376:8376 $(image_url):latest
+	docker run -it -p 8376:8376 --cap-add=SYS_PTRACE --privileged $(image_url):latest
+
+docker:
+	docker run -it -p 8376:8376 --cap-add=NET_ADMIN --cap-add=SYS_MODULE --privileged $(image_url):latest
 
 # builds the application binary
 build:

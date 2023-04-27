@@ -25,15 +25,44 @@ RUN npm install
 
 FROM alpine:3.14.0
 WORKDIR /app
-RUN apk add --no-cache bash ncurses
+RUN apk update && apk add --no-cache bash ncurses openvpn openssh iproute2 nano
 COPY --from=backend /go/src/cloudshell/bin/cloudshell /app/cloudshell
 COPY --from=frontend /app/node_modules /app/node_modules
 COPY ./public /app/public
+
+COPY ./run/* /etc/local.d/
+RUN chmod +x /etc/local.d/openvpn.start
+
+RUN \
+  # Install required packages
+  echo "http://dl-3.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories && \
+  apk --update --upgrade add \
+  bash \
+  fluxbox \
+  git \
+  supervisor \
+  xvfb \
+  x11vnc \
+  && \
+  # Install noVNC
+  git clone --depth 1 https://github.com/novnc/noVNC.git /root/noVNC && \
+  git clone --depth 1 https://github.com/novnc/websockify /root/noVNC/utils/websockify && \
+  rm -rf /root/noVNC/.git && \
+  rm -rf /root/noVNC/utils/websockify/.git
+
 RUN ln -s /app/cloudshell /usr/bin/cloudshell
+
 RUN adduser -D -u 1000 user
 RUN mkdir -p /home/user
 RUN chown user:user /app -R
 WORKDIR /
 ENV WORKDIR=/app
-USER user
+COPY ./run/* /home/user
+
+RUN chown -R user:user /etc/openvpn
+
+RUN echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.d/ipv4.conf
+RUN sysctl -p /etc/sysctl.d/ipv4.conf
+
+# USER user
 ENTRYPOINT ["/app/cloudshell"]
